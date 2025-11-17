@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tbody = table.querySelector('tbody');
   const headers = table.querySelectorAll('th');
 
+  let currentSortedColumn = null;
   let sortDirections = {};
 
   // ==========================
@@ -14,19 +15,24 @@ document.addEventListener('DOMContentLoaded', () => {
     sortDirections[index] = 'asc';
 
     th.addEventListener('click', () => {
+      if (currentSortedColumn !== index) {
+        sortDirections[index] = 'asc';
+        currentSortedColumn = index;
+      }
+
+      const direction = sortDirections[index];
       const rows = Array.from(tbody.querySelectorAll('tr'));
 
       const sorted = rows.sort((a, b) => {
         const A = parseValue(a.children[index].textContent);
         const B = parseValue(b.children[index].textContent);
 
-        if (A < B) return sortDirections[index] === 'asc' ? -1 : 1;
-        if (A > B) return sortDirections[index] === 'asc' ? 1 : -1;
+        if (A < B) return direction === 'asc' ? -1 : 1;
+        if (A > B) return direction === 'asc' ? 1 : -1;
         return 0;
       });
 
-      sortDirections[index] =
-        sortDirections[index] === 'asc' ? 'desc' : 'asc';
+      sortDirections[index] = direction === 'asc' ? 'desc' : 'asc';
 
       tbody.innerHTML = '';
       sorted.forEach(row => tbody.appendChild(row));
@@ -41,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================
-  // 2. ROW SELECTION (class="active")
+  // ROW SELECTION
   // ==========================
   tbody.addEventListener('click', e => {
     const row = e.target.closest('tr');
@@ -52,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================
-  // BUILD REQUIRED FORM
+  // FORM WITH FIXED ATTRIBUTES
   // ==========================
   buildForm();
 
@@ -63,17 +69,17 @@ document.addEventListener('DOMContentLoaded', () => {
     form.innerHTML = `
       <label>
         Name:
-        <input data-qa="input-name" name="name" placeholder="Name">
+        <input data-qa="name" name="name" placeholder="Name">
       </label>
 
       <label>
         Position:
-        <input data-qa="input-position" name="position" placeholder="Position">
+        <input data-qa="position" name="position" placeholder="Position">
       </label>
 
       <label>
         Office:
-        <select data-qa="input-office" name="office">
+        <select data-qa="office" name="office">
           <option value="">Select office</option>
           <option value="Tokyo">Tokyo</option>
           <option value="London">London</option>
@@ -86,15 +92,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
       <label>
         Age:
-        <input data-qa="input-age" name="age" placeholder="Age">
+        <input data-qa="age" type="number" name="age" placeholder="Age">
       </label>
 
       <label>
         Salary:
-        <input data-qa="input-salary" name="salary" placeholder="$100,000">
+        <input data-qa="salary" name="salary" placeholder="$100,000">
       </label>
 
-      <button data-qa="submit-btn" type="submit">Add employee</button>
+      <button data-qa="submit" type="submit">Save to table</button>
     `;
 
     document.body.insertBefore(form, table);
@@ -116,20 +122,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================
-  // VALIDATION RULES
+  // VALIDATION WITH FIXES
   // ==========================
   function validate(d) {
     if (!d.name || d.name.trim().length < 4) {
       return 'Name must be at least 4 characters long';
     }
 
-    const age = Number(d.age);
-    if (isNaN(age) || age < 18 || age > 90) {
-      return 'Age must be between 18 and 90';
+    if (!d.position || d.position.trim().length < 2) {
+      return 'Position is required';
     }
 
     if (!d.office) {
       return 'Office must be selected';
+    }
+
+    const age = Number(d.age);
+    if (isNaN(age) || age < 18 || age > 90) {
+      return 'Age must be between 18 and 90';
     }
 
     if (!d.salary.startsWith('$')) {
@@ -172,20 +182,29 @@ document.addEventListener('DOMContentLoaded', () => {
     notif.classList.add(type);
 
     notif.classList.add('visible');
-
     setTimeout(() => notif.classList.remove('visible'), 2000);
   }
 
   // ==========================
-  // OPTIONAL INLINE EDIT
+  // FIXED OPTIONAL CELL EDITING
   // ==========================
+  let activeInput = null;
+
   tbody.addEventListener('dblclick', e => {
     const cell = e.target.closest('td');
     if (!cell) return;
 
+    if (activeInput) {
+      activeInput.blur();
+    }
+
     const oldValue = cell.textContent.trim();
     const input = document.createElement('input');
+
+    input.className = 'cell-input';
     input.value = oldValue;
+
+    activeInput = input;
 
     cell.textContent = '';
     cell.appendChild(input);
@@ -193,6 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     input.addEventListener('blur', () => {
       cell.textContent = input.value.trim() || oldValue;
+      activeInput = null;
     });
 
     input.addEventListener('keydown', evt => {
